@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jornada do Herói</title>
+<style>
+:root {
+  --bg: #090a14;
+  --panel: #131628;
+  --line: #252a4a;
+  --txt: #e9ebff;
+  --mut: #8b90b8;
+  --gold: #ffc83d;
+  --red: #ef4b5a;
+  --grn: #3ddc97;
+  --blu: #4aa3ff;
+  --cy: #6ee7ff;
+  --purp: #b36efd;
+  --org: #ff8c00;
+  --s: 150px;
+  color-scheme: dark;
+  box-sizing: border-box;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 0, #1b1e42, var(--bg) 70%) var(--bg);
+  color: var(--txt);
+  font: 15px/1.4 'Trebuchet MS', system-ui, sans-serif;
+  display: flex; justify-content: center; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#game {
+  width: 100%; max-width: 900px; padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative;
+}
+.hud { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.name { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; gap: 6px; }
+.name span:last-child { color: var(--mut); font-weight: 400; font-size: 13px; }
+.bar { height: 16px; background: #080910; border-radius: 8px; position: relative; overflow: hidden; border: 1px solid var(--line); margin-top: 4px; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 100%; transition: width .3s; }
+.bar .tr { background: #fffa; transition: width .9s .35s; }
+.hp .f { background: linear-gradient(#ff7d8a, var(--red)); }
+.mp .f { background: linear-gradient(#8ccbff, var(--blu)); }
+.bar b { position: absolute; inset: 0; font-size: 11px; text-align: center; line-height: 15px; text-shadow: 0 1px 2px #000; }
+
+#arena {
+  position: relative; height: 260px; border-radius: 14px; border: 1px solid var(--line);
+  overflow: hidden; background: linear-gradient(#1e224e, #2a1f4d 58%, #141126 58%, #0a0814);
+  touch-action: manipulation;
+}
+.sp { 
+  position: absolute; bottom: 45px; 
+  width: var(--s); height: var(--s);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s; 
+}
+.sp img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+}
+#hero { left: 14%; }
+#en { right: 14%; }
+.status-badge { position: absolute; top: -24px; left: 50%; translate: -50% 0; font-size: 14px; display: flex; gap: 4px; white-space: nowrap; }
+
+#tgt {
+  position: absolute; left: calc(14% + var(--s)*0.5); bottom: calc(45px + var(--s)*0.5);
+  width: calc(var(--s)*1.1); height: calc(var(--s)*1.1); translate: -50% 50%;
+  border: 3px dashed #fff7; border-radius: 50%; display: none; pointer-events: none;
+}
+#tgt.on { display: block; }
+#ring { position: absolute; inset: -3px; border: 4px solid var(--gold); border-radius: 50%; box-shadow: 0 0 10px var(--gold); }
+#ring.ok { border-color: var(--grn); box-shadow: 0 0 16px var(--grn); }
+#ring.spec { border-color: var(--red); box-shadow: 0 0 16px var(--red); }
+
+#hint { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-weight: 800; color: var(--gold); opacity: 0; transition: opacity .15s; text-shadow: 0 2px 4px #000; z-index: 2; }
+#hint.on { opacity: 1; }
+
+#tb {
+  position: absolute; left: 50%; bottom: 12px; width: min(88%, 540px); height: 28px; translate: -50% 0;
+  background: #080912f2; border: 2px solid #fff3; border-radius: 14px; overflow: hidden; display: none;
+}
+#tb.on { display: block; }
+#good { position: absolute; top: 0; bottom: 0; background: #4aa3ff55; }
+#zone { position: absolute; top: 0; bottom: 0; background: linear-gradient(var(--gold), #ff9d00); box-shadow: 0 0 12px var(--gold); }
+#cur { position: absolute; top: 0; bottom: 0; width: 6px; margin-left: -3px; background: #fff; border-radius: 3px; box-shadow: 0 0 10px #fff; }
+#cur.stop { background: var(--red); box-shadow: 0 0 10px var(--red); }
+
+.fl { position: absolute; font-weight: 900; font-size: 26px; color: #fff; pointer-events: none; text-shadow: 0 2px 0 #000; animation: fl 1s forwards; z-index: 5; }
+.fl.crit { color: var(--gold); font-size: 34px; }
+.fl.par { color: var(--cy); }
+.fl.hl { color: var(--grn); }
+.fl.miss { color: #ff5555; font-size: 22px; }
+
+.mn { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+button { font: inherit; font-weight: 700; color: var(--txt); background: linear-gradient(#2a2f60, #1a1e48); border: 1px solid #424a8e; border-radius: 10px; padding: 10px 6px; cursor: pointer; transition: background 0.2s, filter 0.2s; }
+button:hover:not(:disabled) { filter: brightness(1.25); }
+button:disabled { opacity: .4; cursor: default; }
+button small { display: block; font-weight: 400; color: var(--mut); font-size: 11px; }
+
+#log { height: 120px; overflow: auto; font-size: 13px; user-select: text; }
+#log p { margin: 0 0 3px; }
+.s { color: var(--mut); } .c { color: var(--gold); } .p { color: var(--cy); } .d { color: #ff8a94; } .h { color: var(--grn); } .m { color: var(--purp); }
+
+#inv { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.item-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: #0d1020; }
+.item-tag.Comum { border-color: #8a8a8a; color: #ccc; }
+.item-tag.Raro { border-color: var(--blu); color: var(--blu); }
+.item-tag.Épico { border-color: var(--purp); color: var(--purp); }
+.item-tag.Lendário { border-color: var(--gold); color: var(--gold); }
+.item-tag.Mítico { border-color: var(--red); color: #ff66aa; font-weight: bold; box-shadow: 0 0 6px #ff005577; }
+
+.modal { position: fixed; inset: 0; background: #05060fed; display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; max-width: 520px; width: 100%; text-align: center; padding: 24px; box-shadow: 0 10px 30px #0009; position: relative; overflow: hidden; }
+.modal h1 { margin: 0 0 10px; color: var(--gold); font-size: 28px; }
+.modal h2 { margin: 0 0 14px; color: var(--txt); font-size: 22px; }
+.modal p { color: var(--mut); text-align: left; margin: 8px 0; line-height: 1.5; }
+
+.loot-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.loot-card { background: #0e1122; border: 2px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; text-align: left; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column; justify-content: space-between; }
+.loot-card:hover { transform: translateY(-4px); }
+.loot-card.Comum { border-color: #777; }
+.loot-card.Raro { border-color: var(--blu); }
+.loot-card.Épico { border-color: var(--purp); }
+.loot-card.Lendário { border-color: var(--gold); }
+.loot-card.Mítico { border-color: var(--red); box-shadow: 0 0 12px #ff0055aa; }
+.loot-card .r-title { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+.loot-card .r-rarity { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 8px; }
+.loot-card .r-desc { font-size: 12px; color: var(--mut); }
+
+#enemy-fire {
+  display: none;
+  position: absolute;
+  right: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  animation: flicker 0.6s infinite alternate;
+  filter: drop-shadow(0 0 4px #ff6600);
+}
+@keyframes flicker {
+  from { opacity: 0.7; transform: translateY(-50%) scale(1); }
+  to { opacity: 1; transform: translateY(-50%) scale(1.15); }
+}
+
+.victory-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, #1a0500 0%, #3d1500 40%, #1a0a20 100%);
+  z-index: -1;
+  overflow: hidden;
+}
+.victory-bg::before {
+  content: '🏰';
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 90px;
+  filter: brightness(0.7) sepia(1) hue-rotate(-20deg) saturate(3);
+  opacity: 0.85;
+}
+.victory-bg .flame {
+  position: absolute;
+  bottom: 70px;
+  font-size: 28px;
+  animation: rise 2s infinite ease-out;
+  opacity: 0.9;
+}
+@keyframes rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.9; }
+  100% { transform: translateY(-80px) scale(0.6); opacity: 0; }
+}
+
+.name-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: #0e1122;
+  color: var(--txt);
+  text-align: center;
+  margin: 12px 0 8px;
+  outline: none;
+}
+.name-input:focus { border-color: var(--gold); }
+.rank-list {
+  text-align: left;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.rank-list li {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.rank-list li.champion {
+  color: var(--gold);
+  font-weight: bold;
+  text-shadow: 0 0 8px #ffc83d55;
+}
+.rank-list .pos { color: var(--mut); width: 28px; }
+.rank-empty { color: var(--mut); text-align: center; padding: 20px 0; }
+
+.chance-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1a1e48;
+  border: 1px solid var(--line);
+  color: var(--gold);
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+.chance-btn:hover { background: #2a2f60; }
+
+.chance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+}
+.chance-table th, .chance-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.chance-table th { color: var(--gold); }
+
+@keyframes lh { 40% { translate: 140px -10px; } }
+@keyframes le { 40% { translate: -140px -10px; } }
+@keyframes hurt { 25% { translate: -10px 0; filter: brightness(3); } 60% { translate: 8px 0; } }
+@keyframes wu { 50% { scale: 1.12; filter: drop-shadow(0 0 14px var(--red)); } }
+@keyframes par { 50% { scale: 1.15; filter: drop-shadow(0 0 16px var(--cy)); } }
+@keyframes dead { to { opacity: 0; rotate: -80deg; translate: 0 40px; } }
+@keyframes inn { from { opacity: 0; translate: 120px 0; } }
+@keyframes shk { 20% { translate: -6px 3px; } 40% { translate: 6px -3px; } 60% { translate: -4px 2px; } }
+@keyframes fx { 50% { filter: brightness(1.8); } }
+@keyframes fl { to { translate: 0 -70px; opacity: 0; } }
+
+.lh{animation:lh .45s ease-in-out}.le{animation:le .42s ease-in-out}.hurt{animation:hurt .35s}.wu{animation:wu .5s infinite}.par{animation:par .3s}.dead{animation:dead .8s forwards}.inn{animation:inn .6s}.shk{animation:shk .35s}.fx{animation:fx .25s}
+
+@media(max-width:580px){ :root{--s:68px} #arena{height:220px} .loot-options{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <button class="chance-btn" id="btn-chances-game" title="Chances de raridade" style="position:fixed; top:16px; right:16px;">?</button>
+
+  <div class="hud">
+    <div class="card">
+      <div class="name"><span id="hero-name">🦸 Herói</span><span>Poções: <b id="pots">2</b></span></div>
+      <div id="hb"></div>
+      <div id="inv"></div>
+    </div>
+    <div class="card">
+      <div class="name"><span id="enn">—</span><span id="enc"></span></div>
+      <div id="eb" style="position:relative;">
+        <span id="enemy-fire">🔥</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="arena">
+    <div class="sp" id="hero"></div>
+    <div class="sp" id="en"><div id="en-status" class="status-badge"></div></div>
+    <div id="tgt"><div id="ring"></div></div>
+    <div id="hint"></div>
+    <div id="tb"><div id="good"></div><div id="zone"></div><div id="cur"></div></div>
+  </div>
+
+  <div class="mn">
+    <button id="b1" disabled onclick="act('at')">⚔️ Atacar<small>[1] barra de timing</small></button>
+    <button id="b2" disabled onclick="act('sk')">🔥 Ataque Especial<small>[2] 3 MP · difícil / miss se errar</small></button>
+    <button id="b3" disabled onclick="act('pot')">🧪 Poção<small>[3] Curar HP</small></button>
+  </div>
+
+  <div id="log" class="card"></div>
+</div>
+
+<!-- TELA INICIAL -->
+<div id="start-screen" class="modal">
+  <div class="modal-card" style="position:relative;">
+    <button class="chance-btn" id="btn-chances" title="Chances de raridade" style="position:absolute; top:12px; right:12px;">?</button>
+    
+    <h1>⚔️ Jornada do Herói</h1>
+    <h2>O Desafio dos 10 Bosses</h2>
+    
+    <input type="text" id="player-name" class="name-input" placeholder="Digite seu nome (máx. 20)" maxlength="20" autocomplete="off">
+    
+    <p style="text-align:center; margin:4px 0 12px; font-size:13px;">O nome aparecerá acima da sua barra de vida.</p>
+    
+    <button id="btn-start" style="font-size:18px; padding: 12px 30px; margin-bottom:18px;">Iniciar Jornada</button>
+    
+    <h2 style="font-size:18px; margin-bottom:6px;">🏆 Ranking</h2>
+    <ul id="rank-list" class="rank-list">
+      <li class="rank-empty">Nenhum registro ainda</li>
+    </ul>
+    
+    <button id="btn-clear-rank" style="font-size:13px; padding:8px 16px; margin-top:8px; background:#3a1a1a; border-color:#662222;">Limpar Ranking</button>
+    
+    <p style="text-align:center; font-size:12px; color:var(--mut); margin-top:10px;">
+      • Atacar: ESPAÇO na zona dourada<br>
+      • Ataque Especial: barra rápida, errou = falhou<br>
+      • Parry: ESPAÇO quando o anel fechar
+    </p>
+  </div>
+</div>
+
+<!-- MODAL DE CHANCES -->
+<div id="chance-screen" class="modal" style="display:none;">
+  <div class="modal-card">
+    <h2 style="color:var(--gold);">Chances de Raridade</h2>
+    <table class="chance-table">
+      <tr><th>Raridade</th><th>Chance</th></tr>
+      <tr><td style="color:#ccc">Comum</td><td>35%</td></tr>
+      <tr><td style="color:var(--blu)">Raro</td><td>22%</td></tr>
+      <tr><td style="color:var(--purp)">Épico</td><td>20%</td></tr>
+      <tr><td style="color:var(--gold)">Lendário</td><td><b>14%</b></td></tr>
+      <tr><td style="color:#ff66aa">Mítico</td><td>9%</td></tr>
+    </table>
+    <p style="text-align:center; font-size:13px; color:var(--mut);">
+      Cada espada mítica tem aproximadamente 3% de chance individual.<br>
+      Total de chance de aparecer alguma mítica: <b>9%</b>
+    </p>
+    <button id="btn-close-chance" style="margin-top:10px; padding:10px 24px;">Fechar</button>
+  </div>
+</div>
+
+<!-- TELA DE LOOT -->
+<div id="loot-screen" class="modal" style="display:none;">
+  <div class="modal-card">
+    <h2 style="color:var(--gold);">🏆 Chefe Derrotado!</h2>
+    <p style="text-align:center;">Escolha um item para fortalecer seu herói para os próximos desafios:</p>
+    <div id="loot-container" class="loot-options"></div>
+  </div>
+</div>
+
+<!-- TELA DE FIM DE JOGO -->
+<div id="end-screen" class="modal" style="display:none;">
+  <div class="modal-card" id="end-card">
+    <div id="victory-bg" class="victory-bg" style="display:none;"></div>
+    <h1 id="end-title">🏆 Vitória!</h1>
+    <p id="end-desc"></p>
+    <button id="btn-restart" style="font-size:16px; padding: 12px 24px; margin-top:15px;">Jogar Novamente</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const R = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+
+let playerName = 'Herói';
+
+/* ============================================================
+   COLE AS URLs DAS IMAGENS AQUI
+   ============================================================ */
+
+// Imagem do Herói (deixe vazio '' para usar o emoji 🦸)
+const HERO_IMG = 'aint no way.png';
+
+/* ---------- Bosses (cole a URL em img: '') ---------- */
+const BOSSES = [
+  { n: 'Ney Gaúcho',      e: '🗿', img: 'ChatGPT Image 1 de out. de 2026, 19_28_28.png', hp: 70,   d: 8,  speed: 1.00, pNorm: [[850]],           pSpec: [[700]] },
+  { n: 'Coringa',         e: '🐺', img: 'Why So Serious_ - Meme.png', hp: 110,  d: 12, speed: 0.92, pNorm: [[750, 550]],      pSpec: [[600]] },
+  { n: 'Batman',      e: '👹', img: 'Funny pictures.png', hp: 170,  d: 17, speed: 0.85, pNorm: [[700]],           pSpec: [[520, 520]] },
+  { n: 'Cachorro Demoníaco',   e: '🛡️', img: 'i love animales tejidos so cutsieeeeeeeeeeeeeeeeeeeeee😫!.png', hp: 250,  d: 23, speed: 0.78, pNorm: [[650, 500]],      pSpec: [[480]] },
+  { n: 'Pássaro sapeca',        e: '🧙‍♂️', img: '𝓶𝓮𝓸𝔀𝓵.png', hp: 350,  d: 30, speed: 0.72, pNorm: [[600]],           pSpec: [[440, 440]] },
+  { n: 'Homem Triste',          e: '🐍', img: 'baixados.png', hp: 480,  d: 38, speed: 0.66, pNorm: [[550, 450]],      pSpec: [[400, 400, 400]] },
+  { n: 'Futuro CLT',  e: '🤖', img: 'First selfie _3.png', hp: 640,  d: 48, speed: 0.61, pNorm: [[500, 420]],      pSpec: [[380]] },
+  { n: 'Homem Raivoso',     e: '🦁', img: 'Walter White ,Breaking Bad.png', hp: 850,  d: 60, speed: 0.58, pNorm: [[450, 380]],      pSpec: [[340, 340]] },
+  { n: 'homem de aparência extravagante',   e: '👾', img: '꧁•⊹٭𝙱𝙰𝚁𝙰𝙺٭⊹•꧂ no TikTok.png', hp: 1150, d: 75, speed: 0.52, pNorm: [[400, 350]],      pSpec: [[310, 310, 310]] },
+  { n: 'Espião do Governo',     e: '😈', img: 'pombo.png', hp: 1600, d: 95, speed: 0.45, pNorm: [[360, 300, 300]], pSpec: [[270, 270]] }
+];
+
+/* ============================================================ */
+
+/* ---------- Áudio ---------- */
+let AC, master;
+function initAudio() {
+  if (!AC) {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.5; master.connect(AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+}
+function tone(f, d = .15, type = 'sine', v = .3, to = 0, delay = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + d + .02);
+}
+function noise(d = .1, v = .3, hp = 800, delay = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + delay, n = Math.floor(AC.sampleRate * d), b = AC.createBuffer(1, n, AC.sampleRate), a = b.getChannelData(0);
+  for (let i = 0; i < n; i++) a[i] = Math.random() * 2 - 1;
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = b; f.type = 'highpass'; f.frequency.value = hp; g.gain.setValueAtTime(v, t);
+  g.gain.exponentialRampToValueAtTime(.001, t + d); s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+const SFX = {
+  whoosh(){ noise(.18,.2,1500); tone(300,.18,'sine',.1,900); },
+  wind(w){ tone(180, w/1e3, 'sawtooth', .08, 640); },
+  hit(){ noise(.12,.35,600); tone(190,.14,'square',.2,60); },
+  weak(){ noise(.08,.18,1800); tone(120,.1,'triangle',.14,60); },
+  crit(){ noise(.25,.45,400); tone(150,.3,'sawtooth',.3,40); [660,880,1320].forEach((f,i)=>tone(f,.35,'triangle',.18,0,i*.06)); },
+  parry(){ noise(.06,.4,3500); tone(1760,.45,'sine',.3); tone(2637,.3,'sine',.2); tone(3520,.18,'triangle',.12); },
+  block(){ noise(.08,.3,1500); tone(900,.18,'square',.14,500); },
+  hurt(){ noise(.2,.45,200); tone(130,.35,'sawtooth',.3,40); },
+  heal(){ [523,659,784,1047].forEach((f,i)=>tone(f,.25,'sine',.2,0,i*.08)); },
+  win(){ [523,659,784,1047].forEach((f,i)=>tone(f,.3,'square',.12,0,i*.12)); },
+  lose(){ [392,330,262,196].forEach((f,i)=>tone(f,.4,'sawtooth',.14,0,i*.2)); },
+  burn(){ tone(400, .2, 'sawtooth', .2, 100); },
+  freeze(){ tone(800, .3, 'sine', .2, 1200); }
+};
+
+/* ---------- Pool de Itens ---------- */
+const ITEMS_POOL = [
+  { id: 'hp_1', name: 'Vitalidade I', rarity: 'Comum', desc: '+25 HP Máximo (cura o valor)', apply: h => { h.max += 25; h.hp = Math.min(h.max, h.hp + 25); } },
+  { id: 'dmg_1', name: 'Lâmina Amolada', rarity: 'Comum', desc: '+15% de Dano Físico', apply: h => h.dmgMult += 0.15 },
+  { id: 'pot_1', name: 'Bolsa de Poções', rarity: 'Comum', desc: '+1 Poção e +10 Cura na Poção', apply: h => { pots++; h.potHeal += 10; } },
+  { id: 'def_1', name: 'Cota de Couro', rarity: 'Comum', desc: '-8% de Dano Recebido', apply: h => h.defPct += 0.08 },
+  { id: 'str_1', name: 'Força Normal', rarity: 'Comum', desc: '+5% de Dano Total', apply: h => h.dmgMult += 0.05 },
+
+  { id: 'hp_2', name: 'Vitalidade II', rarity: 'Raro', desc: '+50 HP Máximo (cura o valor)', apply: h => { h.max += 50; h.hp = Math.min(h.max, h.hp + 50); } },
+  { id: 'hp_3', name: 'Vitalidade III', rarity: 'Raro', desc: '+70 HP Máximo (cura o valor)', apply: h => { h.max += 70; h.hp = Math.min(h.max, h.hp + 70); } },
+  { id: 'dmg_2', name: 'Aço Temperado', rarity: 'Raro', desc: '+30% de Dano Físico', apply: h => h.dmgMult += 0.30 },
+  { id: 'parry_1', name: 'Contra-Ataque Afiado', rarity: 'Raro', desc: '+50% Dano de Contra-Ataque no Parry Perfeito', apply: h => h.parryDmgMult += 0.5 },
+  { id: 'focus_1', name: 'Amuleto do Foco', rarity: 'Raro', desc: '+15% no tamanho da zona amarela/dourada de timing', apply: h => h.zoneBonus += 0.15 },
+  { id: 'crit_1', name: 'Lâmina Crítica', rarity: 'Raro', desc: '+40% de dano somente em Críticos', apply: h => h.critMult += 0.40 },
+  { id: 'str_2', name: 'Força de Guerreiro', rarity: 'Raro', desc: '+15% de Dano Total', apply: h => h.dmgMult += 0.15 },
+  { id: 'pot_boost1', name: 'Elixir de Cura', rarity: 'Raro', desc: '+20 de cura nas Poções', apply: h => h.potHeal += 20 },
+
+  { id: 'vamp_1', name: 'Coração de Vampiro', rarity: 'Épico', desc: 'Recupera 10% do Dano causado em HP', apply: h => h.lifesteal += 0.10 },
+  { id: 'thorns_1', name: 'Escudo de Espinhos', rarity: 'Épico', desc: 'Devolve 25% do dano recebido ao atacante', apply: h => h.thorns += 0.25 },
+  { id: 'pot_2', name: 'Cinturão do Alquimista', rarity: 'Épico', desc: '+3 Poções e +25 Cura na Poção', apply: h => { pots += 3; h.potHeal += 25; } },
+  { id: 'normal_1', name: 'Espada do Guerreiro', rarity: 'Épico', desc: '+35% de dano somente no Ataque Normal', apply: h => h.normalDmgMult += 0.35 },
+  { id: 'skill_1', name: 'Núcleo do Ataque Especial', rarity: 'Épico', desc: '+40% de dano somente no Ataque Especial', apply: h => h.skillDmgMult += 0.40 },
+  { id: 'str_3', name: 'Força de Schwarzenegger', rarity: 'Épico', desc: '+30% de Dano Total', apply: h => h.dmgMult += 0.30 },
+  { id: 'pot_boost2', name: 'Frasco do Alquimista Supremo', rarity: 'Épico', desc: '+35 de cura nas Poções', apply: h => h.potHeal += 35 },
+  { id: 'parry_easy', name: 'Anel do Reflexo', rarity: 'Épico', desc: '+10% de facilidade em acertar Parry na defesa', apply: h => h.parryTolBonus += 0.10 },
+
+  { id: 'time_1', name: 'Amuleto do Tempo', rarity: 'Lendário', desc: 'Desacelera a velocidade das barras de timing em 20%', apply: h => h.timeSlow += 0.20 },
+  { id: 'god_hp', name: 'Elixir dos Titãs', rarity: 'Lendário', desc: '+120 HP Máximo e cura totalmente', apply: h => { h.max += 120; h.hp = h.max; } },
+  { id: 'hp_4', name: 'Coração de Titã', rarity: 'Lendário', desc: '+100 HP Máximo (cura o valor)', apply: h => { h.max += 100; h.hp = Math.min(h.max, h.hp + 100); } },
+  { id: 'god_dmg', name: 'Força Divina', rarity: 'Lendário', desc: '+60% de Dano Geral', apply: h => h.dmgMult += 0.60 },
+  { id: 'parry_god', name: 'Parry God', rarity: 'Lendário', desc: '+20% de facilidade em acertar Parry na defesa', apply: h => h.parryTolBonus += 0.20 },
+  { id: 'boss_hp_reduce', name: 'Maldição dos Titãs', rarity: 'Lendário', desc: 'Reduz a vida base de todos os bosses em 10% (pode acumular)', apply: h => { h.bossHpMult *= 0.9; } },
+
+  { id: 'mythic_swift', name: 'Espada Rápida', rarity: 'Mítico', desc: 'Permite atacar 2 vezes no mesmo turno a cada 2 rodadas!', apply: h => h.hasSwiftBlade = true },
+  { id: 'mythic_flame', name: 'Espada Flamejante', rarity: 'Mítico', desc: '25% chance de queimar. DoT por turno até a morte. Reaplicar = explosão 300% e remove a queimadura.', apply: h => h.hasFlameBlade = true },
+  { id: 'mythic_frost', name: 'Espada Congelante', rarity: 'Mítico', desc: '30% chance de imobilizar o inimigo por 1 turno após o ataque!', apply: h => h.hasFrostBlade = true }
+];
+
+/* ---------- Estado ---------- */
+let H, E, fi = 0, pots = 2, phase = '', pressFn = null;
+
+/* ---------- Ranking ---------- */
+function loadRanking() {
+  try { return JSON.parse(localStorage.getItem('jornadaRank') || '[]'); } catch { return []; }
+}
+function saveRanking(bossReached, won) {
+  let rank = loadRanking();
+  const newEntry = { name: playerName, boss: bossReached, won: !!won, date: Date.now() };
+  const existingIdx = rank.findIndex(r => r.name.toLowerCase() === playerName.toLowerCase());
+
+  if (existingIdx >= 0) {
+    const old = rank[existingIdx];
+    const isBetter = (won && !old.won) || (won === old.won && bossReached > old.boss);
+    if (isBetter) rank[existingIdx] = newEntry;
+  } else {
+    rank.push(newEntry);
+  }
+
+  rank.sort((a, b) => (b.won - a.won) || (b.boss - a.boss) || (b.date - a.date));
+  rank = rank.slice(0, 15);
+  localStorage.setItem('jornadaRank', JSON.stringify(rank));
+}
+function renderRanking() {
+  const list = $('#rank-list');
+  const rank = loadRanking();
+  if (!rank.length) {
+    list.innerHTML = '<li class="rank-empty">Nenhum registro ainda</li>';
+    return;
+  }
+  list.innerHTML = rank.map((r, i) => {
+    const isChamp = r.won;
+    const label = isChamp ? `<span style="color:var(--gold)">👑 ${r.name} — Campeão</span>` : r.name;
+    const progress = isChamp ? 'Vitória' : `Boss ${r.boss}/10`;
+    return `<li class="${isChamp ? 'champion' : ''}">
+      <span><span class="pos">${i + 1}.</span> ${label}</span>
+      <span>${progress}</span>
+    </li>`;
+  }).join('');
+}
+
+/* ---------- UI ---------- */
+const bh = (i, c) => `<div class="bar ${c}"><i class="tr" id="${i}t"></i><i class="f" id="${i}f"></i><b id="${i}x"></b></div>`;
+$('#hb').innerHTML = bh('h', 'hp') + bh('m', 'mp');
+$('#eb').innerHTML = bh('e', 'hp') + '<span id="enemy-fire">🔥</span>';
+
+const sb = (i, v, m) => {
+  const w = Math.max(0, v / m * 100) + '%';
+  $('#' + i + 'f').style.width = w; $('#' + i + 't').style.width = w;
+  $('#' + i + 'x').textContent = (i == 'm' ? 'MP ' : 'HP ') + Math.max(0, Math.round(v)) + ' / ' + Math.round(m);
+};
+
+function ui() {
+  sb('h', H.hp, H.max); sb('m', H.mp, H.mx); sb('e', E.hp, E.max);
+  $('#pots').textContent = pots;
+  renderInventory();
+  renderEnemyStatus();
+  const fire = $('#enemy-fire');
+  if (fire) fire.style.display = (E.burnStacks > 0) ? 'block' : 'none';
+}
+
+function renderInventory() {
+  const inv = $('#inv'); inv.innerHTML = '';
+  H.items.forEach(it => {
+    const span = document.createElement('span');
+    span.className = `item-tag ${it.rarity}`;
+    span.textContent = it.name;
+    span.title = it.desc;
+    inv.appendChild(span);
+  });
+}
+
+function renderEnemyStatus() {
+  const st = $('#en-status');
+  if (!st) return;
+  st.innerHTML = '';
+  if (E.burnStacks > 0) st.innerHTML += `🔥x${E.burnStacks} `;
+  if (E.frozen) st.innerHTML += `❄️ CONGELADO `;
+}
+
+function log(t, c = '') {
+  const p = document.createElement('p'); p.className = c; p.innerHTML = t;
+  const L = $('#log'); L.append(p); L.scrollTop = L.scrollHeight;
+}
+
+function an(el, c, ms) {
+  el.classList.remove(c); void el.offsetWidth; el.classList.add(c);
+  setTimeout(() => el.classList.remove(c), ms);
+}
+
+function fl(t, side, c) {
+  const s = document.createElement('span'), h = side === 'h';
+  s.className = 'fl ' + c; s.textContent = t;
+  s.style[h ? 'left' : 'right'] = 'calc(14% + 20px)';
+  s.style[h ? 'marginLeft' : 'marginRight'] = R(-30, 30) + 'px';
+  s.style.bottom = (140 + R(0, 40)) + 'px';
+  $('#arena').append(s); setTimeout(() => s.remove(), 1000);
+}
+
+function hint(t) { const h = $('#hint'); h.textContent = t || ''; h.classList.toggle('on', !!t); }
+function menu(on) {
+  $('#b1').disabled = !on;
+  $('#b2').disabled = !on || H.mp < 3;
+  $('#b3').disabled = !on || !pots || H.hp >= H.max;
+}
+
+function hurtE(n, c) {
+  E.hp = Math.max(0, E.hp - n); ui();
+  fl('-' + Math.round(n), 'e', c ? 'crit' : '');
+  an($('#en'), 'hurt', 350);
+}
+
+function hurtH(n) {
+  H.hp = Math.max(0, H.hp - n); ui();
+  fl('-' + Math.round(n), 'h', '');
+  an($('#hero'), 'hurt', 350);
+}
+
+/* ---------- Função para definir sprite (imagem ou emoji) ---------- */
+function setSprite(el, imgUrl, fallbackEmoji) {
+  if (imgUrl && imgUrl.trim() !== '') {
+    el.innerHTML = `<img src="${imgUrl}" alt="sprite" draggable="false">`;
+  } else {
+    el.innerHTML = fallbackEmoji || '';
+  }
+}
+
+/* ---------- Timing ---------- */
+function timing(zw, dur, isSkill = false) {
+  return new Promise(res => {
+    dur = dur * (1 - H.timeSlow);
+    zw = zw * (1 + H.zoneBonus);
+
+    const b = $('#tb'), c = $('#cur'), z = $('#zone'), g = $('#good');
+    const zs = 0.25 + Math.random() * (0.6 - zw);
+    
+    z.style.cssText = `left:${zs * 100}%;width:${zw * 100}%`;
+    g.style.cssText = `left:${(zs - .08) * 100}%;width:${(zw + .16) * 100}%`;
+    c.style.left = '0%'; b.classList.add('on');
+    hint(isSkill ? 'ATAQUE ESPECIAL: ESPAÇO no Centro Dourado!' : 'ESPAÇO na zona dourada = CRÍTICO!');
+
+    const t0 = performance.now(); let p = 0, done = false;
+
+    const end = () => {
+      if (done) return; done = true; pressFn = null;
+      let r = 'weak';
+      if (p >= zs && p <= zs + zw) r = 'crit';
+      else if (p >= zs - .08 && p <= zs + zw + .08) r = 'good';
+
+      c.classList.add('stop'); hint('');
+      setTimeout(() => {
+        b.classList.remove('on'); c.classList.remove('stop');
+        res(r);
+      }, 400);
+    };
+
+    pressFn = end;
+    (function f() {
+      if (done) return;
+      p = (performance.now() - t0) / dur;
+      c.style.left = Math.min(p, 1) * 100 + '%';
+      if (p >= 1) { p = 2; end(); return; }
+      requestAnimationFrame(f);
+    })();
+  });
+}
+
+/* ---------- Ações ---------- */
+async function act(k) {
+  if (phase !== 'menu') return;
+
+  if (k === 'pot') {
+    if (!pots || H.hp >= H.max) return;
+    pots--;
+    const h = H.potHeal; H.hp = Math.min(H.max, H.hp + h);
+    SFX.heal(); fl('+' + h, 'h', 'hl');
+    log(`Você bebeu uma poção e recuperou <b>+${h} HP</b>.`, 'h');
+    ui();
+    menu(1);
+    return;
+  }
+
+  const isSkill = k === 'sk';
+  if (isSkill && H.mp < 3) return;
+
+  phase = 'busy'; menu(0);
+  if (isSkill) H.mp -= 3;
+  ui();
+
+  log(isSkill ? 'Você canaliza o poderoso <b>Ataque Especial</b>…' : 'Você avança para atacar…', 's');
+  SFX.whoosh();
+
+  const speedFactor = E.speed;
+  const zw = (isSkill ? 0.08 : 0.13) * speedFactor;
+  const dur = (isSkill ? 850 : 1300) * speedFactor;
+
+  const r = await timing(zw, dur, isSkill);
+
+  if (isSkill && r === 'weak') {
+    SFX.weak();
+    fl('ERROU!', 'e', 'miss');
+    log('<b>ERROU!</b> O Ataque Especial falhou por falta de timing!', 'd');
+    await sleep(800);
+    return endPlayerTurn();
+  }
+
+  let baseDmg = isSkill ? R(30, 40) * 1.1 : R(17, 24);
+  baseDmg *= H.dmgMult;
+
+  if (isSkill) baseDmg *= H.skillDmgMult;
+  else baseDmg *= H.normalDmgMult;
+
+  let finalDmg = Math.round(baseDmg * (r === 'crit' ? (2.0 * H.critMult) : r === 'good' ? 1.0 : 0.5));
+
+  let flameMsg = '';
+  if (H.hasFlameBlade && Math.random() < 0.25) {
+    SFX.burn();
+    if (E.burnStacks > 0) {
+      const burst = Math.round(finalDmg * 3);
+      finalDmg += burst;
+      flameMsg = ` 🔥 <b>EXPLOSÃO DE CHAGAS (+${burst} Dano)!</b>`;
+      E.burnStacks = 0;
+      E.burnDmg = 0;
+    } else {
+      E.burnStacks = 1;
+      E.burnDmg = Math.max(5, Math.round(finalDmg * 0.30));
+      finalDmg = Math.round(finalDmg * 1.5);
+      flameMsg = ` 🔥 <b>Inimigo em Chamas!</b> (DoT ${E.burnDmg}/turno)`;
+    }
+  }
+
+  an($('#hero'), 'lh', 450); await sleep(200);
+  (r === 'crit' ? SFX.crit : r === 'good' ? SFX.hit : SFX.weak)();
+
+  if (r === 'crit' && Math.random() < 0.5) {
+    H.mp = Math.min(H.mx, H.mp + 1);
+    an($('#arena'), 'shk', 350);
+  } else if (r === 'crit') {
+    an($('#arena'), 'shk', 350);
+  }
+
+  hurtE(finalDmg, r === 'crit');
+
+  if (H.lifesteal > 0) {
+    const healVal = Math.round(finalDmg * H.lifesteal);
+    if (healVal > 0) {
+      H.hp = Math.min(H.max, H.hp + healVal);
+      fl('+' + healVal, 'h', 'hl');
+    }
+  }
+
+  const mpGainText = (r === 'crit' && H.mp > 0) ? ' (+1 MP)' : '';
+  log(r === 'crit' 
+    ? `<b>CRÍTICO!</b> ${isSkill ? 'Ataque Especial' : 'Ataque'} causou <b>${finalDmg}</b> de dano.${flameMsg}${mpGainText}` 
+    : `Acerto: <b>${finalDmg}</b> de dano.${flameMsg}`, 
+    r === 'crit' ? 'c' : 's');
+
+  if (H.hasFrostBlade && Math.random() < 0.30) {
+    E.frozen = true;
+    SFX.freeze();
+    log('❄️ <b>CONGELADO!</b> O golpe imobilizou o chefe!', 'p');
+  }
+
+  ui();
+  await sleep(r === 'crit' ? 800 : 600);
+
+  if (E.hp <= 0) return win();
+
+  if (H.hasSwiftBlade) {
+    H.swiftTurns++;
+    if (H.swiftTurns >= 2) {
+      H.swiftTurns = 0;
+      log('⚡ <b>ESPADA RÁPIDA!</b> Você recebe um ataque extra imediato!', 'c');
+      phase = 'menu'; menu(1);
+      return;
+    }
+  }
+
+  endPlayerTurn();
+}
+
+function endPlayerTurn() {
+  if (E.frozen) {
+    E.frozen = false;
+    log('❄️ O chefe está congelado e PERDEU o turno!', 'p');
+    ui();
+    phase = 'menu'; menu(1);
+  } else {
+    foe();
+  }
+}
+
+/* ---------- Inimigo ---------- */
+async function foe() {
+  phase = 'foe';
+
+  if (E.burnStacks > 0 && E.burnDmg > 0) {
+    const dot = E.burnDmg;
+    hurtE(dot, false);
+    SFX.burn();
+    log(`🔥 A queimadura causa <b>${dot}</b> de dano!`, 'd');
+    await sleep(500);
+    if (E.hp <= 0) return win();
+  }
+  
+  const isSpecial = Math.random() < (0.25 + fi * 0.06);
+  const pat = isSpecial ? E.pSpec[R(0, E.pSpec.length - 1)] : E.pNorm[R(0, E.pNorm.length - 1)];
+
+  log(`${E.n} prepara ${isSpecial ? 'um ⚡ <b>ATAQUE ESPECIAL DEVASTADOR</b>' : 'um ataque'}!`, isSpecial ? 'd' : 's');
+  await sleep(600);
+
+  for (const w of pat) {
+    await strike(w, isSpecial);
+    if (H.hp <= 0) return lose();
+    if (E.hp <= 0) return win();
+    await sleep(350);
+  }
+
+  phase = 'menu'; log('Sua vez!', 's'); menu(1);
+}
+
+async function strike(w, isSpecial) {
+  const tg = $('#tgt'), rg = $('#ring'), en = $('#en');
+  let off = null;
+
+  const adjustedW = w * E.speed * (1 + H.timeSlow);
+
+  tg.classList.add('on'); en.classList.add('wu');
+  rg.classList.toggle('spec', isSpecial);
+  
+  hint(isSpecial ? '⚡ ESPECIAL! PARRY TIGHT! (só 10% de chance de raspão)' : 'PARRY! ESPAÇO quando o anel fechar');
+  SFX.wind(adjustedW);
+
+  const t0 = performance.now();
+  pressFn = () => { if (off === null) off = performance.now() - t0 - adjustedW; };
+
+  await new Promise(d => (function f() {
+    const e = performance.now() - t0;
+    rg.style.scale = 1 + Math.max(0, 1 - e / adjustedW) * 2.4;
+    rg.classList.toggle('ok', Math.abs(e - adjustedW) < (isSpecial ? 55 : 80));
+    if (e >= adjustedW + 110) d(); else requestAnimationFrame(f);
+  })());
+
+  pressFn = null; tg.classList.remove('on'); en.classList.remove('wu'); hint('');
+
+  const tolMult = 1 + (H.parryTolBonus || 0);
+  const tolPerfect = (isSpecial ? 55 : 80) * tolMult;
+  const tolGood = (isSpecial ? 130 : 190) * tolMult;
+
+  const k = (off !== null && Math.abs(off) <= tolPerfect) ? 'perfect' 
+          : (off !== null && off >= -tolGood) ? 'good' : 'miss';
+
+  let rawDmg = R(E.d - 2, E.d + 3) * (isSpecial ? 1.7 : 1.0) * 0.68;
+  if (fi >= 7) rawDmg *= 0.85;
+
+  an(en, 'le', 420); await sleep(180);
+
+  if (k === 'perfect') {
+    if (isSpecial) {
+      const takeChip = Math.random() < 0.10;
+      if (takeChip) {
+        const chipDmg = Math.max(1, Math.round(rawDmg * 0.15 * (1 - H.defPct)));
+        SFX.parry(); an($('#arena'), 'fx', 250); an($('#hero'), 'par', 300);
+        fl('Parry Especial! -' + chipDmg, 'h', 'par');
+        hurtH(chipDmg);
+        if (Math.random() < 0.6) H.mp = Math.min(H.mx, H.mp + 1);
+        
+        const counter = Math.round(R(8, 14) * H.parryDmgMult);
+        hurtE(counter, 0);
+        log(`<b>PARRY ESPECIAL!</b> Ainda tomou raspão de <b>${chipDmg}</b> e contra-ataque de <b>${counter}</b>.`, 'p');
+      } else {
+        SFX.parry(); an($('#arena'), 'fx', 250); an($('#hero'), 'par', 300);
+        fl('PARRY TOTAL!', 'h', 'par');
+        if (Math.random() < 0.6) H.mp = Math.min(H.mx, H.mp + 1);
+        
+        const counter = Math.round(R(8, 14) * H.parryDmgMult);
+        hurtE(counter, 0);
+        log(`<b>PARRY ESPECIAL PERFEITO!</b> Dano anulado e contra-ataque de <b>${counter}</b>.`, 'p');
+      }
+    } else {
+      SFX.parry(); an($('#arena'), 'fx', 250); an($('#hero'), 'par', 300);
+      fl('PARRY!', 'h', 'par');
+      if (Math.random() < 0.6) H.mp = Math.min(H.mx, H.mp + 1);
+      
+      const counter = Math.round(R(10, 16) * H.parryDmgMult);
+      hurtE(counter, 0);
+      log(`<b>PARRY PERFEITO!</b> Dano anulado e contra-ataque de <b>${counter}</b>.`, 'p');
+    }
+  } else if (k === 'good') {
+    const finalDmg = Math.ceil((rawDmg * (isSpecial ? 0.6 : 0.45)) * (1 - H.defPct));
+    SFX.block(); fl('Bloqueio', 'h', 'par');
+    hurtH(finalDmg);
+    
+    if (H.thorns > 0) {
+      const retDmg = Math.round(finalDmg * H.thorns);
+      hurtE(retDmg, 0);
+    }
+    log(`Parry Parcial: recebeu <b>${finalDmg}</b> de dano.`, 'p');
+  } else {
+    const finalDmg = Math.ceil(rawDmg * (1 - H.defPct));
+    SFX.hurt(); an($('#arena'), 'shk', 350);
+    hurtH(finalDmg);
+    
+    if (H.thorns > 0) {
+      const retDmg = Math.round(finalDmg * H.thorns);
+      hurtE(retDmg, 0);
+    }
+    log(`${off !== null ? 'Fora do tempo! ' : ''}${E.n} acertou em cheio: <b>${finalDmg}</b> de dano!`, 'd');
+  }
+
+  await sleep(450);
+}
+
+/* ---------- Loot ---------- */
+function offerLoot() {
+  const container = $('#loot-container'); container.innerHTML = '';
+
+  let options = [];
+  let pool = [...ITEMS_POOL].filter(it => {
+    if (it.id === 'boss_hp_reduce') return true;
+    return !H.items.some(owned => owned.id === it.id);
+  });
+
+  for (let j = pool.length - 1; j > 0; j--) {
+    const k = Math.floor(Math.random() * (j + 1));
+    [pool[j], pool[k]] = [pool[k], pool[j]];
+  }
+
+  for (let i = 0; i < 2; i++) {
+    const roll = Math.random();
+    let targetRarity = 'Comum';
+    if (roll < 0.09) targetRarity = 'Mítico';
+    else if (roll < 0.23) targetRarity = 'Lendário';
+    else if (roll < 0.43) targetRarity = 'Épico';
+    else if (roll < 0.65) targetRarity = 'Raro';
+
+    let subPool = pool.filter(it => it.rarity === targetRarity);
+    if (subPool.length === 0) subPool = pool;
+
+    for (let j = subPool.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [subPool[j], subPool[k]] = [subPool[k], subPool[j]];
+    }
+
+    const chosen = subPool[0];
+    options.push(chosen);
+    if (chosen.id !== 'boss_hp_reduce') {
+      pool = pool.filter(it => it.id !== chosen.id);
+    }
+  }
+
+  options.forEach(item => {
+    const card = document.createElement('div');
+    card.className = `loot-card ${item.rarity}`;
+    card.innerHTML = `
+      <div>
+        <div class="r-rarity" style="color:var(--${item.rarity === 'Comum' ? 'txt' : item.rarity === 'Raro' ? 'blu' : item.rarity === 'Épico' ? 'purp' : item.rarity === 'Lendário' ? 'gold' : 'red'})">${item.rarity}</div>
+        <div class="r-title">${item.name}</div>
+        <div class="r-desc">${item.desc}</div>
+      </div>
+    `;
+    card.onclick = () => selectLoot(item);
+    container.appendChild(card);
+  });
+
+  $('#loot-screen').style.display = 'flex';
+}
+
+function selectLoot(item) {
+  H.items.push(item);
+  item.apply(H);
+  
+  $('#loot-screen').style.display = 'none';
+  log(`🏆 Você equipou: <b>${item.name}</b>!`, 'c');
+  
+  fi++;
+  if (fi >= BOSSES.length) {
+    endGame(true);
+  } else {
+    spawnBoss();
+  }
+}
+
+/* ---------- Fluxo ---------- */
+function spawnBoss() {
+  const baseHp = BOSSES[fi].hp;
+  const finalHp = Math.round(baseHp * (H.bossHpMult || 1));
+
+  E = {
+    ...BOSSES[fi],
+    max: finalHp,
+    hp: finalHp,
+    burnStacks: 0,
+    burnDmg: 0,
+    frozen: false
+  };
+
+  const en = $('#en');
+  setSprite(en, E.img, E.e);
+  en.classList.remove('dead');
+  an(en, 'inn', 600);
+
+  $('#enn').textContent = E.n;
+  $('#enc').textContent = `Boss ${fi + 1}/${BOSSES.length}`;
+  log(`⚔️ <b>${E.n}</b> surge na arena!`, 'm');
+  ui(); phase = 'menu'; menu(1);
+}
+
+async function win() {
+  phase = 'busy'; SFX.win();
+  $('#en').classList.add('dead');
+  log(`🎉 <b>${E.n} foi derrotado!</b>`, 'c');
+  await sleep(1200);
+
+  if (fi + 1 >= BOSSES.length) {
+    endGame(true);
+  } else {
+    const h = Math.round(H.max * 0.35);
+    H.hp = Math.min(H.max, H.hp + h);
+    H.mp = Math.min(H.mx, H.mp + 2);
+    log(`Você descansa brevemente: +${h} HP e +2 MP.`, 'h');
+    ui();
+    offerLoot();
+  }
+}
+
+async function lose() {
+  phase = 'busy'; SFX.lose();
+  $('#hero').classList.add('dead');
+  log('💀 <b>Você sucumbiu aos ataques do chefe…</b>', 'd');
+  await sleep(1400);
+  endGame(false);
+}
+
+function endGame(winGame) {
+  phase = '';
+  const victoryBg = $('#victory-bg');
+  
+  saveRanking(winGame ? 10 : (fi + 1), winGame);
+  
+  if (winGame) {
+    $('#end-title').textContent = '🏆 VITÓRIA SUPREMA!';
+    $('#end-desc').innerHTML = `Incrível, <b>${playerName}</b>! Você derrotou os 10 Bosses e se tornou o Mestre da Jornada do Herói!`;
+    victoryBg.style.display = 'block';
+    victoryBg.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+      const flame = document.createElement('span');
+      flame.className = 'flame';
+      flame.textContent = '🔥';
+      flame.style.left = (15 + i * 10) + '%';
+      flame.style.animationDelay = (i * 0.25) + 's';
+      victoryBg.appendChild(flame);
+    }
+  } else {
+    $('#end-title').textContent = '💀 DERROTA';
+    $('#end-desc').innerHTML = `<b>${playerName}</b> caiu diante de <b>${E.n}</b> (Boss ${fi + 1}/10). Treine seus parries e tente novamente!`;
+    victoryBg.style.display = 'none';
+  }
+  $('#end-screen').style.display = 'flex';
+}
+
+function resetGame() {
+  const input = $('#player-name');
+  const name = (input.value || '').trim().slice(0, 20);
+  playerName = name || 'Herói';
+  
+  $('#hero-name').textContent = '🦸 ' + playerName;
+  
+  // Define a imagem do herói
+  setSprite($('#hero'), HERO_IMG, '🦸');
+  
+  H = {
+    hp: 180, max: 180, mp: 3, mx: 6,
+    dmgMult: 1.0, defPct: 0.0,
+    potHeal: 45, parryDmgMult: 1.0,
+    zoneBonus: 0.0, timeSlow: 0.0,
+    lifesteal: 0.0, thorns: 0.0,
+    critMult: 1.0,
+    normalDmgMult: 1.0,
+    skillDmgMult: 1.0,
+    parryTolBonus: 0.0,
+    bossHpMult: 1.0,
+    hasSwiftBlade: false, swiftTurns: 0,
+    hasFlameBlade: false,
+    hasFrostBlade: false,
+    items: []
+  };
+  pots = 2; fi = 0;
+  $('#hero').classList.remove('dead');
+  $('#log').innerHTML = '';
+  $('#end-screen').style.display = 'none';
+  $('#start-screen').style.display = 'none';
+  $('#victory-bg').style.display = 'none';
+  spawnBoss();
+}
+
+/* ---------- Eventos ---------- */
+$('#btn-start').onclick = () => {
+  const name = ($('#player-name').value || '').trim();
+  if (!name) {
+    $('#player-name').style.borderColor = 'var(--red)';
+    $('#player-name').focus();
+    return;
+  }
+  initAudio();
+  resetGame();
+};
+
+$('#btn-restart').onclick = () => {
+  renderRanking();
+  $('#end-screen').style.display = 'none';
+  $('#start-screen').style.display = 'flex';
+  $('#player-name').value = playerName === 'Herói' ? '' : playerName;
+};
+
+$('#btn-chances').onclick = () => { $('#chance-screen').style.display = 'flex'; };
+$('#btn-chances-game').onclick = () => { $('#chance-screen').style.display = 'flex'; };
+$('#btn-close-chance').onclick = () => { $('#chance-screen').style.display = 'none'; };
+
+$('#btn-clear-rank').onclick = () => {
+  if (confirm('Tem certeza que deseja apagar todo o ranking?')) {
+    localStorage.removeItem('jornadaRank');
+    renderRanking();
+  }
+};
+
+addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (e.code === 'Space') { e.preventDefault(); pressFn && pressFn(); }
+  else if (phase === 'menu') {
+    if (e.key === '1') act('at');
+    else if (e.key === '2') act('sk');
+    else if (e.key === '3') act('pot');
+  }
+});
+
+addEventListener('keyup', e => { if (e.code === 'Space') e.preventDefault(); });
+$('#arena').addEventListener('pointerdown', () => { pressFn && pressFn(); });
+
+renderRanking();
+</script>
+</body>
+</html>
